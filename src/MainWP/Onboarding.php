@@ -28,11 +28,18 @@ final class Onboarding
         }
     }
 
-    public static function run(object $site, string $product, string $operation, string $key): string
+    public static function run(
+        object $site,
+        string $product,
+        string $operation,
+        string $key,
+        ?array $expectedInventory = null,
+        string|array|null $expectedSource = null
+    ): string
     {
         $db = MainWP_DB::instance();
         $id = (int) $site->id;
-        return self::locked('site-' . $id, static function () use ($site, $product, $operation, $key, $db, $id): string {
+        return self::locked('site-' . $id, static function () use ($site, $product, $operation, $key, $db, $id, $expectedInventory, $expectedSource): string {
             try {
                 if ($operation === 'save_override' || $operation === 'clear_override') {
                     if ($operation === 'save_override' && $key === '') {
@@ -43,15 +50,18 @@ final class Onboarding
                 }
 
                 $inventory = self::currentInventory($site, $product);
+                if ($expectedInventory !== null && $inventory !== $expectedInventory) {
+                    return 'preview_stale';
+                }
                 if (!SiteInventory::permitsActions($product, $inventory, [], time()) || $inventory['pro']['state'] === 'legacy') {
                     throw new RuntimeException('operation_refused');
                 }
                 if ($operation === 'activate_license') {
-                    self::activateLicense($site, $product, $inventory, $key);
+                    self::activateLicense($site, $product, $inventory, $key, is_string($expectedSource) ? $expectedSource : null);
                     $outcome = 'license_activated';
                 } else {
                     [$verb, $edition] = explode('_', $operation, 2);
-                    self::changePlugin($site, $product, $verb, $edition, $inventory);
+                    self::changePlugin($site, $product, $verb, $edition, $inventory, is_array($expectedSource) ? $expectedSource : null);
                     $outcome = $verb === 'install' ? 'plugin_installed' : 'plugin_activated';
                 }
             } catch (Throwable $error) {
@@ -70,7 +80,7 @@ final class Onboarding
     private const RESULTS = [
         'license_missing', 'license_unreadable', 'license_invalid', 'license_storage', 'license_rejected',
         'license_unsupported', 'license_email', 'license_unconfirmed', 'operation_refused', 'operation_busy', 'operation_unconfirmed',
-        'catalog_unavailable', 'pro_source_unavailable', 'lite_pending', 'lite_download_failed', 'package_storage', 'package_mismatch',
+        'catalog_unavailable', 'pro_source_unavailable', 'lite_pending', 'lite_download_failed', 'package_storage', 'package_mismatch', 'preview_stale',
     ];
 
     public static function historyKey(string $product): string
@@ -83,7 +93,7 @@ final class Onboarding
         return 'synergetic_products_status_v1_' . str_replace('-', '_', $product);
     }
 
-    private static function currentInventory(object $site, string $product): array
+    public static function currentInventory(object $site, string $product, bool $persist = true): array
     {
         $plugins = ManagedConnection::call($site, 'get_all_plugins', ['filter' => '0'])['data'] ?? null;
         if (!is_array($plugins) || !array_is_list($plugins) || !array_filter($plugins, static fn ($p): bool => ($p['slug'] ?? '') === 'mainwp-child/mainwp-child.php')) {
@@ -91,11 +101,13 @@ final class Onboarding
         }
         $site = clone $site;
         $site->plugins = wp_json_encode($plugins);
-        MainWP_DB::instance()->update_website_values((int) $site->id, ['plugins' => $site->plugins]);
+        if ($persist) {
+            MainWP_DB::instance()->update_website_values((int) $site->id, ['plugins' => $site->plugins]);
+        }
         return SiteInventory::fromSite($site, $product);
     }
 
-    private static function changePlugin(object $site, string $product, string $verb, string $edition, array $inventory): void
+    private static function changePlugin(object $site, string $product, string $verb, string $edition, array $inventory, ?array $expectedPackage): void
     {
         $basename = PublisherCatalog::PRODUCTS[$product][$edition];
         $other = $edition === 'lite' ? 'pro' : 'lite';
@@ -108,7 +120,7 @@ final class Onboarding
                     'type' => 'plugin', 'url' => wp_json_encode($url), 'activatePlugin' => 'no',
                 ]);
                 return $approvedVersion;
-            });
+            }, $expectedPackage);
             $expected = 'inactive';
         } else {
             if ($inventory[$edition]['state'] !== 'inactive' || $inventory[$other]['state'] === 'active') {
@@ -124,7 +136,7 @@ final class Onboarding
         }
     }
 
-    private static function activateLicense(object $site, string $product, array $inventory, string $key): void
+    private static function activateLicense(object $site, string $product, array $inventory, string $key, ?string $expectedRevision): void
     {
         // @wp-test feature=single-site-onboarding scenario=license-readback
         if ($inventory['active_edition'] !== 'pro') {
@@ -141,7 +153,7 @@ final class Onboarding
         if (($result['administration_email_valid'] ?? false) !== true) {
             throw new RuntimeException('license_email');
         }
-        $key = SavedLicenses::resolve($product, (int) $site->id, $key);
+        $key = SavedLicenses::resolve($product, (int) $site->id, $key, $expectedRevision);
         $activation = ManagedConnection::product($site, $product, 'activate_license_v1', $key);
         $after = SiteInventory::normalizeStatus(ManagedConnection::product($site, $product)['result'] ?? null, $product, $inventory, time());
         if ($after !== null) {

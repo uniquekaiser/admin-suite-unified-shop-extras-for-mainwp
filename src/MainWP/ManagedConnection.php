@@ -18,7 +18,17 @@ final class ManagedConnection
 
     public static function product(object $site, string $product, string $operation = 'status_v1', string $key = ''): array
     {
-        $reply = self::call($site, 'extra_execution', [], static fn (array $post): array => ProductRequest::bind($post, $product, $operation, $key));
+        return self::productReply($site, $product, static fn (array $post): array => ProductRequest::bind($post, $product, $operation, $key));
+    }
+
+    public static function settings(object $site, string $product, ?bool $value = null, string $checksum = ''): array
+    {
+        return self::productReply($site, $product, static fn (array $post): array => ProductRequest::settings($post, $product, $value, $checksum));
+    }
+
+    private static function productReply(object $site, string $product, callable $bind): array
+    {
+        $reply = self::call($site, 'extra_execution', [], $bind);
         if ($reply === null) {
             return [];
         }

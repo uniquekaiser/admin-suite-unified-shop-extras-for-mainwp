@@ -23,7 +23,7 @@
           "case": "positive",
           "role": "administrator",
           "entry": { "surface": "admin", "path": "/wp-admin/admin.php?page=Extensions-Admin-Suite-Unified-Shop-Extras-For-Mainwp" },
-          "sourceRefs": [{ "path": "src/MainWP/Dashboard.php", "line": 54 }],
+          "sourceRefs": [{ "path": "src/MainWP/Dashboard.php", "line": 55 }],
           "inputs": {
             "expectations": "Open both tabs with a fixture that has Pro, Lite, inactive and missing packages. Legacy Unified Shop Extras 1.11.1 reports an unconfirmed edition.",
             "independentOracle": "Compare the edition columns with MainWP's synced plugin basenames, versions and active flags."
@@ -38,7 +38,7 @@
           "case": "refusal",
           "role": "administrator",
           "entry": { "surface": "admin", "path": "/wp-admin/admin.php?page=Extensions-Admin-Suite-Unified-Shop-Extras-For-Mainwp&product=unified-shop-extras" },
-          "sourceRefs": [{ "path": "src/MainWP/Dashboard.php", "line": 170 }],
+          "sourceRefs": [{ "path": "src/MainWP/Dashboard.php", "line": 171 }],
           "inputs": {
             "componentContract": "tests/dashboard-inventory-contract.php",
             "expectations": "Keep the site in inventory but omit its action controls. Reject a direct refresh for an ineligible site even with a nonce for that site."
@@ -53,7 +53,7 @@
           "case": "positive",
           "role": "administrator",
           "entry": { "surface": "admin", "path": "/wp-admin/admin.php?page=Extensions-Admin-Suite-Unified-Shop-Extras-For-Mainwp" },
-          "sourceRefs": [{ "path": "src/MainWP/Dashboard.php", "line": 271 }],
+          "sourceRefs": [{ "path": "src/MainWP/Dashboard.php", "line": 272 }],
           "inputs": {
             "expectations": "Refresh one eligible site per product and display the confirmed Pro license and timestamp. Keep the last known status after a connection failure.",
             "independentOracle": "Compare with the child's signed contract and its locally stored license metadata."
@@ -68,7 +68,7 @@
           "case": "refusal",
           "role": "administrator",
           "entry": { "surface": "admin", "path": "/wp-admin/admin-post.php" },
-          "sourceRefs": [{ "path": "src/MainWP/Dashboard.php", "line": 272 }],
+          "sourceRefs": [{ "path": "src/MainWP/Dashboard.php", "line": 273 }],
           "inputs": {
             "expectations": "Post using a nonce for a different site. Repeat as a user outside the extension permission or with MainWP's allowed-site filter excluding the target.",
             "independentOracle": "The request returns 403 and the inaccessible site's license snapshot is unchanged."
@@ -98,7 +98,7 @@
           "case": "positive",
           "role": "administrator",
           "entry": { "surface": "admin", "path": "/wp-admin/admin.php?page=Extensions-Admin-Suite-Unified-Shop-Extras-For-Mainwp" },
-          "sourceRefs": [{ "path": "src/MainWP/Dashboard.php", "line": 225 }],
+          "sourceRefs": [{ "path": "src/MainWP/Dashboard.php", "line": 226 }],
           "inputs": { "expectations": "Install Lite and Pro on an eligible child. Confirm each basename and version, then activate each independently without overlapping editions." },
           "status": "gap",
           "reason": "The signed catalog and connected Dashboard and Child do not have a reviewed Studio fixture.",
@@ -110,7 +110,7 @@
           "case": "refusal",
           "role": "administrator",
           "entry": { "surface": "admin", "path": "/wp-admin/admin-post.php" },
-          "sourceRefs": [{ "path": "src/MainWP/Dashboard.php", "line": 293 }],
+          "sourceRefs": [{ "path": "src/MainWP/Dashboard.php", "line": 294 }],
           "inputs": { "expectations": "Obtain a valid site nonce, remove WooCommerce eligibility, and retry the action. Confirm installed plugins and customer license state are unchanged." },
           "status": "gap",
           "reason": "The Studio fixture does not have a reviewed remote state mutation and nonce binding.",
@@ -122,7 +122,7 @@
           "case": "positive",
           "role": "administrator",
           "entry": { "surface": "admin", "path": "/wp-admin/admin-post.php" },
-          "sourceRefs": [{ "path": "src/MainWP/Dashboard.php", "line": 338 }],
+          "sourceRefs": [{ "path": "src/MainWP/Dashboard.php", "line": 339 }],
           "inputs": { "componentContract": "tests/saved-licenses-contract.php", "expectations": "Save defaults and overrides, verify only envelopes are stored, and reject an unreadable assigned override without falling through to a default." },
           "status": "gap",
           "reason": "The Studio fixture cannot inspect MainWP credential storage.",
@@ -134,11 +134,154 @@
           "case": "positive",
           "role": "administrator",
           "entry": { "surface": "admin", "path": "/wp-admin/admin-post.php" },
-          "sourceRefs": [{ "path": "src/MainWP/Onboarding.php", "line": 129 }],
+          "sourceRefs": [{ "path": "src/MainWP/Onboarding.php", "line": 141 }],
           "inputs": { "expectations": "Use a synthetic provider to activate a new Pro installation, then read the child entitlement through a new request." },
           "status": "gap",
           "reason": "Studio does not have a reviewed fixture for the signed connection and Elite Licenser service.",
           "recovery": "Bind a disposable fixture with the product contract and an approved synthetic provider."
+        }
+      ]
+    },
+    {
+      "id": "product-mcp-abilities",
+      "title": "MainWP product abilities over MCP",
+      "intent": "Read product status and preview-confirm single-site onboarding and two approved settings through MainWP MCP.",
+      "provenance": [
+        {
+          "kind": "owner-requirement",
+          "reference": "MainWP MCP abilities request",
+          "description": "Allow agents to onboard and configure both products via MCP."
+        }
+      ],
+      "dependencies": [
+        {
+          "slug": "mainwp",
+          "version": "6.5"
+        },
+        {
+          "slug": "mainwp-mcp-bridge",
+          "version": "0.5.0"
+        },
+        {
+          "slug": "mcp-adapter",
+          "version": "0.7.2"
+        }
+      ],
+      "scenarios": [
+        {
+          "id": "discover-and-read",
+          "title": "Discover five abilities and return scoped status",
+          "case": "positive",
+          "role": "administrator",
+          "entry": {
+            "surface": "rest",
+            "path": "/wp-json/mcp/mainwp"
+          },
+          "sourceRefs": [
+            {
+              "path": "src/MainWP/Abilities.php",
+              "line": 65
+            }
+          ],
+          "inputs": {
+            "componentContract": "tests/mcp-abilities-runtime.php",
+            "expectations": "Use the authenticated bridge to list tools and inventory. Check the IDs and edition states against the Dashboard."
+          },
+          "status": "gap",
+          "reason": "No reviewed Studio binding for the disposable MainWP and MCP fixture.",
+          "recovery": "Use the disposable Dashboard and signed Child with both product candidate contracts."
+        },
+        {
+          "id": "confirmed-onboarding",
+          "title": "Verify preview-confirmed product onboarding",
+          "case": "positive",
+          "role": "administrator",
+          "entry": {
+            "surface": "rest",
+            "path": "/wp-json/mcp/mainwp"
+          },
+          "sourceRefs": [
+            {
+              "path": "src/MainWP/Abilities.php",
+              "line": 120
+            }
+          ],
+          "inputs": {
+            "componentContract": "tests/mcp-abilities-runtime.php",
+            "expectations": "Install Lite and Pro and activate Pro and the saved fixture license for each product. Verify the child status and confirm results contain no keys."
+          },
+          "status": "gap",
+          "reason": "No reviewed Studio binding for the disposable MainWP and MCP fixture.",
+          "recovery": "Use the disposable Dashboard and signed Child with both product candidate contracts."
+        },
+        {
+          "id": "confirmed-setting",
+          "title": "Verify the two approved settings through signed Child",
+          "case": "positive",
+          "role": "administrator",
+          "entry": {
+            "surface": "rest",
+            "path": "/wp-json/mcp/mainwp"
+          },
+          "sourceRefs": [
+            {
+              "path": "src/MainWP/Abilities.php",
+              "line": 166
+            }
+          ],
+          "inputs": {
+            "componentContract": "tests/mcp-abilities-runtime.php",
+            "expectations": "Enable the pilot module in the child fixture. Preview the opposite value, confirm the preview and verify the persisted value through another signed request."
+          },
+          "status": "gap",
+          "reason": "No reviewed Studio binding for the disposable MainWP and MCP fixture.",
+          "recovery": "Use the disposable Dashboard and signed Child with both product candidate contracts."
+        },
+        {
+          "id": "refuse-ineligible",
+          "title": "Refuse Unified Shop Extras writes after WooCommerce is disabled",
+          "case": "refusal",
+          "role": "administrator",
+          "entry": {
+            "surface": "rest",
+            "path": "/wp-json/mcp/mainwp"
+          },
+          "sourceRefs": [
+            {
+              "path": "src/MainWP/Abilities.php",
+              "line": 232
+            }
+          ],
+          "inputs": {
+            "componentContract": "tests/mcp-abilities-runtime.php",
+            "expectations": "Deactivate WooCommerce on the child, then request setting reads, setting changes and onboarding. Compare with the existing child state."
+          },
+          "status": "gap",
+          "reason": "No reviewed Studio binding for the disposable MainWP and MCP fixture.",
+          "recovery": "Use the disposable Dashboard and signed Child with both product candidate contracts."
+        },
+        {
+          "id": "refuse-changed-preview",
+          "title": "Refuse replayed tokens and modified settings arguments",
+          "case": "refusal",
+          "role": "administrator",
+          "entry": {
+            "surface": "rest",
+            "path": "/wp-json/mcp/mainwp"
+          },
+          "sourceRefs": [
+            {
+              "path": "src/MainWP/Abilities.php",
+              "line": 298
+            }
+          ],
+          "inputs": {
+            "componentContract": "tests/mcp-abilities-runtime.php",
+            "expectations": "Change the requested value after preview. Confirm that the change is refused. Apply the original value and attempt to reuse its token."
+          },
+          "status": "gap",
+          "reason": "No reviewed Studio binding for the disposable MainWP and MCP fixture.",
+          "recovery": "Use the disposable Dashboard and signed Child with both product candidate contracts."
         }
       ]
     }

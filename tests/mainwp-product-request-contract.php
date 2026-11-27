@@ -31,6 +31,20 @@ $as = AdminSuiteRequest::bind($request, $operation, $key);
 $seed = $as['synergetic_admin_suite_nonce_seed'];
 check($as['nonce'] === hash('sha256', "synergetic/admin-suite/mainwp/v1\n{$seed}\n{$operation}\n{$key}"), 'Existing Admin Suite binding changed.');
 
+$checksum = hash('sha256', 'setting document');
+foreach (['admin-suite', 'unified-shop-extras'] as $product) {
+    $prefix = 'synergetic_' . str_replace('-', '_', $product);
+    $read = ProductRequest::settings($request, $product, null, '');
+    $write = ProductRequest::settings($request, $product, false, $checksum);
+    $seed = $write[$prefix . '_nonce_seed'];
+    check($read[$prefix . '_operation'] === 'get_setting_v1' && !isset($read[$prefix . '_setting']), 'Setting read needs no payload.');
+    check($write[$prefix . '_setting'] === '0:' . $checksum, 'Setting request must carry the exact boolean and checksum.');
+    check($write['nonce'] === hash('sha256', "synergetic/{$product}/mainwp/v1\n{$seed}\nupdate_setting_v1\n0:{$checksum}"),
+        'Setting request must bind the action, value and checksum to the signed nonce.');
+    check(!array_key_exists($prefix . '_license_key', $read) && !array_key_exists($prefix . '_license_key', $write),
+        'Settings requests must omit the license key.');
+}
+
 foreach ([
     [$request, 'unknown', 'status_v1', ''],
     [$request, 'unified-shop-extras', 'exec', ''],

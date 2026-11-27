@@ -83,7 +83,7 @@ final class PackageDelivery
     }
 
     /** Give the native installer a temporary HTTPS URL for an already verified ZIP. */
-    public static function deliver(string $product, string $edition, callable $install): mixed
+    public static function deliver(string $product, string $edition, callable $install, ?array $expectedPackage = null): mixed
     {
         $catalog = self::catalog() ?? throw new RuntimeException('catalog_unavailable');
         $temp = realpath(sys_get_temp_dir());
@@ -99,7 +99,7 @@ final class PackageDelivery
         }
         $handle = self::PREFIX . hash('sha256', $token = bin2hex(random_bytes(32)));
         try {
-            $version = self::build($catalog, $product, $edition, $file);
+            $version = self::build($catalog, $product, $edition, $file, $expectedPackage);
             $hash = hash_file('sha256', $file);
             if (!is_string($hash) || !set_transient($handle, ['file' => $file, 'hash' => $hash], self::TTL)) {
                 throw new RuntimeException('package_storage');
@@ -145,10 +145,11 @@ final class PackageDelivery
         exit;
     }
 
-    private static function build(PublisherCatalog $catalog, string $product, string $edition, string $file): string
+    private static function build(PublisherCatalog $catalog, string $product, string $edition, string $file, ?array $expectedPackage): string
     {
         if ($edition === 'lite') {
             $package = $catalog->litePackage($product) ?? throw new RuntimeException('lite_pending');
+            self::requireExpectedPackage($catalog, $package, $expectedPackage);
             $reply = wp_safe_remote_get($package['url'], [
                 'stream' => true, 'filename' => $file, 'timeout' => 30, 'sslverify' => true,
                 'redirection' => 0, 'limit_response_size' => $package['bytes'] + 1,
@@ -165,6 +166,7 @@ final class PackageDelivery
             throw new RuntimeException('pro_source_unavailable');
         }
         $manifest = $catalog->proManifest($product, $source['version']);
+        self::requireExpectedPackage($catalog, $manifest, $expectedPackage);
         ProductPackage::verifyInstalled($source['directory'], $manifest);
         $zip = new ZipArchive();
         if ($zip->open($file, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
@@ -191,6 +193,18 @@ final class PackageDelivery
             throw new RuntimeException('package_mismatch');
         }
         return $source['version'];
+    }
+
+    public static function packageIdentity(PublisherCatalog $catalog, array $package): array
+    {
+        return [$catalog->revision(), $package['version'], hash('sha256', wp_json_encode($package))];
+    }
+
+    private static function requireExpectedPackage(PublisherCatalog $catalog, array $package, ?array $expected): void
+    {
+        if ($expected !== null && self::packageIdentity($catalog, $package) !== $expected) {
+            throw new RuntimeException('preview_stale');
+        }
     }
 
     private static function inside(string $path, string $directory): bool

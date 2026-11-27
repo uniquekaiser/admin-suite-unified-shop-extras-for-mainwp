@@ -1,6 +1,6 @@
 # MainWP Dashboard inventory
 
-Install the development copy as `admin-suite-unified-shop-extras-for-mainwp/admin-suite-unified-shop-extras-for-mainwp.php`. Activate it on a WordPress 6.9 or later Dashboard with PHP 8.2 or later and MainWP Dashboard 6.5 or later. Open **MainWP → Extensions → Admin Suite and Unified Shop Extras**.
+Install the development copy as `admin-suite-unified-shop-extras-for-mainwp/admin-suite-unified-shop-extras-for-mainwp.php`. Activate it on a WordPress 6.9 or later Dashboard with PHP 8.3 or later and MainWP Dashboard 6.5 or later. Open **MainWP → Extensions → Admin Suite and Unified Shop Extras**.
 
 The **Admin Suite** and **Unified Shop Extras** tabs show MainWP-visible sites with separate Lite and Pro install and activation states. The edition columns use exact plugin basenames and versions from the last MainWP sync. Unified Shop Extras 1.11.1 and older copies at the shared basename show an unconfirmed edition.
 

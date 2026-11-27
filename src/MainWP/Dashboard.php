@@ -31,6 +31,7 @@ final class Dashboard
         }
 
         $dashboard = new self($file);
+        Abilities::boot($file);
         add_filter('mainwp_getextensions', [$dashboard, 'register']);
         add_action('admin_post_' . self::REFRESH, [$dashboard, 'refresh']);
         add_action('admin_post_' . self::DEFAULT_KEY, [$dashboard, 'defaultKey']);

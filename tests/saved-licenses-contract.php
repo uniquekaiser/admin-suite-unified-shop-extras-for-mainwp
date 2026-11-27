@@ -81,6 +81,10 @@ namespace {
     same('uwe-default', SavedLicenses::resolve($uwe, 17, ''));
     same('as-override', SavedLicenses::resolve($as, 17, ''));
     same('one-time', SavedLicenses::resolve($as, 17, 'one-time'));
+    $revision = SavedLicenses::revision($as, 17);
+    same('as-override', SavedLicenses::resolve($as, 17, '', $revision));
+    SavedLicenses::save($as, 17, 'as-rotated');
+    failure('preview_stale', fn () => SavedLicenses::resolve($as, 17, '', $revision));
     $GLOBALS['fixture_options']['synergetic_products_key_admin_suite_17'] = 'envelope:unreadable';
     failure('license_unreadable', fn () => SavedLicenses::resolve($as, 17, ''));
     SavedLicenses::save($as, 17, '');

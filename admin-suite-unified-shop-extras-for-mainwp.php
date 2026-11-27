@@ -2,11 +2,11 @@
 /**
  * Plugin Name: Admin Suite and Unified Shop Extras for MainWP
  * Plugin URI: https://github.com/uniquekaiser/admin-suite-unified-shop-extras-for-mainwp
- * Description: View Admin Suite and Unified Shop Extras across connected MainWP sites.
- * Version: 0.1.0
+ * Description: Manage Admin Suite and Unified Shop Extras across connected MainWP sites.
+ * Version: 0.2.0
  * Requires at least: 6.9
  * Tested up to: 7.1.3
- * Requires PHP: 8.2
+ * Requires PHP: 8.3
  * Requires Plugins: mainwp
  * Author: Synergetic
  * License: GPL-3.0-or-later
@@ -29,6 +29,7 @@ require_once __DIR__ . '/src/MainWP/ManagedConnection.php';
 require_once __DIR__ . '/src/MainWP/SavedLicenses.php';
 require_once __DIR__ . '/src/MainWP/PackageDelivery.php';
 require_once __DIR__ . '/src/MainWP/Onboarding.php';
+require_once __DIR__ . '/src/MainWP/Abilities.php';
 require_once __DIR__ . '/src/MainWP/Dashboard.php';
 
 add_action('plugins_loaded', static function (): void {

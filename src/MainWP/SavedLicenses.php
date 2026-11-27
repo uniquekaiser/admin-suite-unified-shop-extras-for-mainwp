@@ -13,7 +13,18 @@ final class SavedLicenses
         return get_option(self::option($product, $siteId), null) !== null;
     }
 
-    public static function resolve(string $product, int $siteId, string $oneTime): string
+    /** A server-side identity for the assigned encrypted value, including rotation. */
+    public static function revision(string $product, int $siteId): string
+    {
+        $option = self::option($product, self::has($product, $siteId) ? $siteId : 0);
+        $stored = get_option($option, null);
+        if (!Crypto::is_credential_envelope($stored)) {
+            return '';
+        }
+        return hash('sha256', $option . "\0" . $stored);
+    }
+
+    public static function resolve(string $product, int $siteId, string $oneTime, ?string $expectedRevision = null): string
     {
         if ($oneTime !== '') {
             return self::validate($oneTime);
@@ -25,6 +36,9 @@ final class SavedLicenses
         }
         if (!Crypto::is_credential_envelope($stored)) {
             throw new RuntimeException('license_unreadable');
+        }
+        if ($expectedRevision !== null && !hash_equals($expectedRevision, hash('sha256', $option . "\0" . $stored))) {
+            throw new RuntimeException('preview_stale');
         }
         $key = Crypto::decrypt_credential($stored);
         if (!is_string($key) || !self::valid($key)) {
