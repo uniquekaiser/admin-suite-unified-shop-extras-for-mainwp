@@ -1,0 +1,43 @@
+name: Build and publish add-on
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          persist-credentials: false
+      - name: Run PHP checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          php -v
+          php -r 'exit(class_exists("ZipArchive") && extension_loaded("sodium") ? 0 : 1);'
+          php -l admin-suite-unified-shop-extras-for-mainwp.php
+          find src tests tools -name '*.php' -print0 | xargs -0 -n 1 php -l
+          for test in tests/*-contract.php; do php "$test"; done
+      - name: Build release ZIP and release-notes from CHANGELOG.md
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 tools/build-release.py --version "${GITHUB_REF_NAME#v}" --changelog CHANGELOG.md --output dist
+          (cd dist && sha256sum --check SHA256SUMS)
+      - name: Publish verified assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create "$GITHUB_REF_NAME" \
+            --verify-tag --title "$GITHUB_REF_NAME" --notes-file dist/release-notes.md \
+            dist/*.zip dist/SHA256SUMS

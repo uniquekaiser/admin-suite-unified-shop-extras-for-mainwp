@@ -1,0 +1,147 @@
+{
+  "schemaVersion": "1.0",
+  "subject": "plugin",
+  "features": [
+    {
+      "id": "product-inventory",
+      "title": "MainWP product inventory",
+      "intent": "Show separate product tabs with per-site edition and license status. Restrict Unified Shop Extras actions to eligible WooCommerce sites.",
+      "provenance": [
+        {
+          "kind": "owner-requirement",
+          "reference": "MainWP Dashboard UI request",
+          "description": "Show site-level Lite, Pro and license status for both products, with WooCommerce eligibility gating Unified Shop Extras actions."
+        }
+      ],
+      "dependencies": [
+        { "slug": "mainwp", "version": "6.5" }
+      ],
+      "scenarios": [
+        {
+          "id": "edition-tabs",
+          "title": "Each tab shows the site's installed editions and activation state",
+          "case": "positive",
+          "role": "administrator",
+          "entry": { "surface": "admin", "path": "/wp-admin/admin.php?page=Extensions-Admin-Suite-Unified-Shop-Extras-For-Mainwp" },
+          "sourceRefs": [{ "path": "src/MainWP/Dashboard.php", "line": 54 }],
+          "inputs": {
+            "expectations": "Open both tabs with a fixture that has Pro, Lite, inactive and missing packages. Legacy Unified Shop Extras 1.11.1 reports an unconfirmed edition.",
+            "independentOracle": "Compare the edition columns with MainWP's synced plugin basenames, versions and active flags."
+          },
+          "status": "gap",
+          "reason": "No reviewed Studio environment with MainWP Dashboard site fixtures.",
+          "recovery": "Bind a disposable Dashboard with the site matrix in docs/dashboard-inventory.md."
+        },
+        {
+          "id": "woocommerce-actions",
+          "title": "A site with missing, inactive, unsupported or unknown WooCommerce has no Unified Shop Extras actions",
+          "case": "refusal",
+          "role": "administrator",
+          "entry": { "surface": "admin", "path": "/wp-admin/admin.php?page=Extensions-Admin-Suite-Unified-Shop-Extras-For-Mainwp&product=unified-shop-extras" },
+          "sourceRefs": [{ "path": "src/MainWP/Dashboard.php", "line": 170 }],
+          "inputs": {
+            "componentContract": "tests/dashboard-inventory-contract.php",
+            "expectations": "Keep the site in inventory but omit its action controls. Reject a direct refresh for an ineligible site even with a nonce for that site."
+          },
+          "status": "gap",
+          "reason": "Studio has no reviewed binding for the signed connection and direct POST nonce.",
+          "recovery": "Use the disposable MainWP Dashboard and scoped site fixtures."
+        },
+        {
+          "id": "refresh-license",
+          "title": "Refresh displays verified Pro license status for each product",
+          "case": "positive",
+          "role": "administrator",
+          "entry": { "surface": "admin", "path": "/wp-admin/admin.php?page=Extensions-Admin-Suite-Unified-Shop-Extras-For-Mainwp" },
+          "sourceRefs": [{ "path": "src/MainWP/Dashboard.php", "line": 271 }],
+          "inputs": {
+            "expectations": "Refresh one eligible site per product and display the confirmed Pro license and timestamp. Keep the last known status after a connection failure.",
+            "independentOracle": "Compare with the child's signed contract and its locally stored license metadata."
+          },
+          "status": "gap",
+          "reason": "Studio has no reviewed binding for a two-installation MainWP fixture.",
+          "recovery": "Bind a connected local child running both product contracts."
+        },
+        {
+          "id": "restrict-site",
+          "title": "A refresh refuses an unauthorized user or a different managed site",
+          "case": "refusal",
+          "role": "administrator",
+          "entry": { "surface": "admin", "path": "/wp-admin/admin-post.php" },
+          "sourceRefs": [{ "path": "src/MainWP/Dashboard.php", "line": 272 }],
+          "inputs": {
+            "expectations": "Post using a nonce for a different site. Repeat as a user outside the extension permission or with MainWP's allowed-site filter excluding the target.",
+            "independentOracle": "The request returns 403 and the inaccessible site's license snapshot is unchanged."
+          },
+          "status": "gap",
+          "reason": "The Dashboard fixture and permission roles have no reviewed Studio binding.",
+          "recovery": "Bind a subscriber, restricted administrator and two sites with separate access."
+        }
+      ]
+    },
+    {
+      "id": "single-site-onboarding",
+      "title": "Single-site installation and licensing",
+      "intent": "Install either approved edition, activate each plugin as a separate operation, and activate eligible Pro child licenses using an explicitly entered or encrypted saved key.",
+      "provenance": [
+        {
+          "kind": "owner-requirement",
+          "reference": "Single-site onboarding request",
+          "description": "Use signed Lite releases and matching active, licensed Dashboard Pro files. Restrict Unified Shop Extras actions to eligible sites."
+        }
+      ],
+      "dependencies": [{ "slug": "mainwp", "version": "6.5" }],
+      "scenarios": [
+        {
+          "id": "install-activate",
+          "title": "Install each approved edition inactive and activate it separately",
+          "case": "positive",
+          "role": "administrator",
+          "entry": { "surface": "admin", "path": "/wp-admin/admin.php?page=Extensions-Admin-Suite-Unified-Shop-Extras-For-Mainwp" },
+          "sourceRefs": [{ "path": "src/MainWP/Dashboard.php", "line": 225 }],
+          "inputs": { "expectations": "Install Lite and Pro on an eligible child. Confirm each basename and version, then activate each independently without overlapping editions." },
+          "status": "gap",
+          "reason": "The signed catalog and connected Dashboard and Child do not have a reviewed Studio fixture.",
+          "recovery": "Bind disposable MainWP sites and a fixture catalog containing genuine edition layouts."
+        },
+        {
+          "id": "refuse-ineligible",
+          "title": "Reject Unified Shop Extras onboarding when the target loses WooCommerce eligibility",
+          "case": "refusal",
+          "role": "administrator",
+          "entry": { "surface": "admin", "path": "/wp-admin/admin-post.php" },
+          "sourceRefs": [{ "path": "src/MainWP/Dashboard.php", "line": 293 }],
+          "inputs": { "expectations": "Obtain a valid site nonce, remove WooCommerce eligibility, and retry the action. Confirm installed plugins and customer license state are unchanged." },
+          "status": "gap",
+          "reason": "The Studio fixture does not have a reviewed remote state mutation and nonce binding.",
+          "recovery": "Use a connected disposable WooCommerce site and a verified pre- and post-action inventory."
+        },
+        {
+          "id": "encrypted-keys",
+          "title": "Persist separate encrypted defaults and site overrides",
+          "case": "positive",
+          "role": "administrator",
+          "entry": { "surface": "admin", "path": "/wp-admin/admin-post.php" },
+          "sourceRefs": [{ "path": "src/MainWP/Dashboard.php", "line": 338 }],
+          "inputs": { "componentContract": "tests/saved-licenses-contract.php", "expectations": "Save defaults and overrides, verify only envelopes are stored, and reject an unreadable assigned override without falling through to a default." },
+          "status": "gap",
+          "reason": "The Studio fixture cannot inspect MainWP credential storage.",
+          "recovery": "Use a local Dashboard with synthetic keys and the saved license contract."
+        },
+        {
+          "id": "license-readback",
+          "title": "Confirm a Pro license with a fresh signed child read",
+          "case": "positive",
+          "role": "administrator",
+          "entry": { "surface": "admin", "path": "/wp-admin/admin-post.php" },
+          "sourceRefs": [{ "path": "src/MainWP/Onboarding.php", "line": 129 }],
+          "inputs": { "expectations": "Use a synthetic provider to activate a new Pro installation, then read the child entitlement through a new request." },
+          "status": "gap",
+          "reason": "Studio does not have a reviewed fixture for the signed connection and Elite Licenser service.",
+          "recovery": "Bind a disposable fixture with the product contract and an approved synthetic provider."
+        }
+      ]
+    }
+  ],
+  "exclusions": []
+}
